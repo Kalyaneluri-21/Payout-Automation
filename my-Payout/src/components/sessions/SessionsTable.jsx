@@ -38,6 +38,12 @@ function SessionsTable({ sessions, loading }) {
               scope="col"
               className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
             >
+              Mentor Email
+            </th>
+            <th
+              scope="col"
+              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+            >
               Date & Time
             </th>
             <th
@@ -75,8 +81,9 @@ function SessionsTable({ sessions, loading }) {
         <tbody className="bg-white divide-y divide-gray-200">
           {sessions.length === 0 ? (
             <tr>
-              <td colSpan="7" className="px-6 py-4 text-center text-gray-500">
-                No sessions found
+              <td colSpan="8" className="px-6 py-4 text-center text-gray-500">
+                {" "}
+                No sessions found{" "}
               </td>
             </tr>
           ) : (
@@ -88,6 +95,11 @@ function SessionsTable({ sessions, loading }) {
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="text-sm font-medium text-gray-900">
                     {session.mentorName}
+                  </div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="text-sm font-medium text-gray-900">
+                    {session.mentorEmail}
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">

@@ -6,12 +6,19 @@ import toast from "react-hot-toast";
 function AddSessionModal({ isOpen, onClose, onSessionAdded }) {
   const [formData, setFormData] = useState({
     mentorName: "",
+    mentorEmail: "",
     dateTime: "",
     type: "",
     duration: "",
     ratePerHour: "",
   });
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState({});
+
+  const validateEmail = (email) => {
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return re.test(email);
+  };
 
   const calculatePayout = (duration, ratePerHour) => {
     // Convert duration to hours and calculate payout
@@ -22,17 +29,35 @@ function AddSessionModal({ isOpen, onClose, onSessionAdded }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setErrors({});
 
     try {
       // Validate form
-      if (
-        !formData.mentorName ||
-        !formData.dateTime ||
-        !formData.type ||
-        !formData.duration ||
-        !formData.ratePerHour
-      ) {
-        throw new Error("Please fill in all fields");
+      const newErrors = {};
+      if (!formData.mentorName) {
+        newErrors.mentorName = "Mentor name is required";
+      }
+      if (!formData.mentorEmail) {
+        newErrors.mentorEmail = "Mentor email is required";
+      } else if (!validateEmail(formData.mentorEmail)) {
+        newErrors.mentorEmail = "Please enter a valid email address";
+      }
+      if (!formData.dateTime) {
+        newErrors.dateTime = "Date and time are required";
+      }
+      if (!formData.type) {
+        newErrors.type = "Session type is required";
+      }
+      if (!formData.duration) {
+        newErrors.duration = "Duration is required";
+      }
+      if (!formData.ratePerHour) {
+        newErrors.ratePerHour = "Rate per hour is required";
+      }
+
+      if (Object.keys(newErrors).length > 0) {
+        setErrors(newErrors);
+        throw new Error("Please fill in all required fields correctly");
       }
 
       // Calculate payout
@@ -61,11 +86,13 @@ function AddSessionModal({ isOpen, onClose, onSessionAdded }) {
       // Reset form and close modal
       setFormData({
         mentorName: "",
+        mentorEmail: "",
         dateTime: "",
         type: "",
         duration: "",
         ratePerHour: "",
       });
+      setErrors({});
       onSessionAdded();
       onClose();
     } catch (error) {
@@ -119,8 +146,37 @@ function AddSessionModal({ isOpen, onClose, onSessionAdded }) {
               onChange={(e) =>
                 setFormData({ ...formData, mentorName: e.target.value })
               }
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+              className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm ${
+                errors.mentorName ? "border-red-500" : ""
+              }`}
             />
+            {errors.mentorName && (
+              <p className="mt-1 text-sm text-red-600">{errors.mentorName}</p>
+            )}
+          </div>
+
+          {/* Mentor Email */}
+          <div>
+            <label
+              htmlFor="mentorEmail"
+              className="block text-sm font-medium text-gray-700"
+            >
+              Mentor Email
+            </label>
+            <input
+              type="email"
+              id="mentorEmail"
+              value={formData.mentorEmail}
+              onChange={(e) =>
+                setFormData({ ...formData, mentorEmail: e.target.value })
+              }
+              className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm ${
+                errors.mentorEmail ? "border-red-500" : ""
+              }`}
+            />
+            {errors.mentorEmail && (
+              <p className="mt-1 text-sm text-red-600">{errors.mentorEmail}</p>
+            )}
           </div>
 
           {/* Date & Time */}
@@ -138,8 +194,13 @@ function AddSessionModal({ isOpen, onClose, onSessionAdded }) {
               onChange={(e) =>
                 setFormData({ ...formData, dateTime: e.target.value })
               }
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+              className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm ${
+                errors.dateTime ? "border-red-500" : ""
+              }`}
             />
+            {errors.dateTime && (
+              <p className="mt-1 text-sm text-red-600">{errors.dateTime}</p>
+            )}
           </div>
 
           {/* Session Type */}
@@ -156,13 +217,18 @@ function AddSessionModal({ isOpen, onClose, onSessionAdded }) {
               onChange={(e) =>
                 setFormData({ ...formData, type: e.target.value })
               }
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+              className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm ${
+                errors.type ? "border-red-500" : ""
+              }`}
             >
               <option value="">Select Type</option>
               <option value="Live">Live</option>
               <option value="Review">Review</option>
               <option value="Eval">Eval</option>
             </select>
+            {errors.type && (
+              <p className="mt-1 text-sm text-red-600">{errors.type}</p>
+            )}
           </div>
 
           {/* Duration */}
@@ -181,8 +247,13 @@ function AddSessionModal({ isOpen, onClose, onSessionAdded }) {
                 setFormData({ ...formData, duration: e.target.value })
               }
               min="0"
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+              className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm ${
+                errors.duration ? "border-red-500" : ""
+              }`}
             />
+            {errors.duration && (
+              <p className="mt-1 text-sm text-red-600">{errors.duration}</p>
+            )}
           </div>
 
           {/* Rate per Hour */}
@@ -201,8 +272,13 @@ function AddSessionModal({ isOpen, onClose, onSessionAdded }) {
                 setFormData({ ...formData, ratePerHour: e.target.value })
               }
               min="0"
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+              className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm ${
+                errors.ratePerHour ? "border-red-500" : ""
+              }`}
             />
+            {errors.ratePerHour && (
+              <p className="mt-1 text-sm text-red-600">{errors.ratePerHour}</p>
+            )}
           </div>
 
           {/* Submit Button */}

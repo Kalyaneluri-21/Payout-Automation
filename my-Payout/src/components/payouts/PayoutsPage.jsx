@@ -130,8 +130,14 @@ function PayoutsPage() {
   };
 
   const handleOverrideConfirm = (newAmount, reason) => {
-    // This will be implemented to handle manual overrides
-    console.log("Override confirmed:", { newAmount, reason });
+    // Update the payoutData state with the new amount
+    setPayoutData((prevData) => ({
+      ...prevData,
+      netPayable: newAmount,
+      isOverridden: true,
+      overrideReason: reason,
+    }));
+    setIsOverrideModalOpen(false);
   };
 
   return (

@@ -70,13 +70,27 @@ function PayoutSummaryCard({ data, onOverride }) {
         </div>
 
         <div className="flex justify-between items-center py-4 bg-gray-50 rounded-lg px-4 mt-6">
-          <span className="text-lg font-semibold text-gray-900">
-            Net Payable Amount
-          </span>
+          <div>
+            <span className="text-lg font-semibold text-gray-900">
+              Net Payable Amount
+            </span>
+            {data.isOverridden && (
+              <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                Overridden
+              </span>
+            )}
+          </div>
           <span className="text-2xl font-bold text-green-600">
             ₹{data.netPayable.toFixed(2)}
           </span>
         </div>
+
+        {data.isOverridden && data.overrideReason && (
+          <div className="mt-2 text-sm text-gray-500">
+            <span className="font-medium">Override reason:</span>{" "}
+            {data.overrideReason}
+          </div>
+        )}
       </div>
 
       <div className="mt-6">
