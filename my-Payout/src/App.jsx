@@ -6,6 +6,7 @@ import Signup from "./components/Signup";
 import Admin from "./components/Admin";
 import Mentor from "./components/Mentor";
 import Sessions from "./components/sessions/Sessions";
+import PayoutsPage from "./components/payouts/PayoutsPage";
 
 function App() {
   return (
@@ -19,6 +20,7 @@ function App() {
           element={<div className="p-6">Welcome to Admin Dashboard</div>}
         />
         <Route path="sessions" element={<Sessions />} />
+        <Route path="payouts" element={<PayoutsPage />} />
       </Route>
     </Routes>
   );
