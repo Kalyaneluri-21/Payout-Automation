@@ -19,8 +19,10 @@ function DateRangePicker({ dateRange, onChange }) {
     }
 
     const days = parseInt(preset);
-    const endDate = dayjs();
-    const startDate = endDate.subtract(days, "day");
+    const endDate = dayjs().endOf("day");
+    const startDate = dayjs()
+      .subtract(days - 1, "day")
+      .startOf("day");
 
     onChange({
       startDate: startDate.toDate(),
@@ -30,10 +32,22 @@ function DateRangePicker({ dateRange, onChange }) {
   };
 
   const handleDateChange = (field, value) => {
+    const date = value ? dayjs(value) : null;
+
+    // Set start date to start of day and end date to end of day
+    const adjustedDate =
+      date && (field === "startDate" ? date.startOf("day") : date.endOf("day"));
+
     onChange({
       ...dateRange,
-      [field]: value ? new Date(value) : null,
+      [field]: adjustedDate ? adjustedDate.toDate() : null,
+      preset: "custom",
     });
+  };
+
+  // Format date for display
+  const formatDate = (date) => {
+    return date ? dayjs(date).format("YYYY-MM-DD") : "";
   };
 
   return (
@@ -69,11 +83,8 @@ function DateRangePicker({ dateRange, onChange }) {
             <input
               type="date"
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-              value={
-                dateRange.startDate
-                  ? dayjs(dateRange.startDate).format("YYYY-MM-DD")
-                  : ""
-              }
+              value={formatDate(dateRange.startDate)}
+              max={formatDate(dateRange.endDate)}
               onChange={(e) => handleDateChange("startDate", e.target.value)}
             />
           </div>
@@ -84,17 +95,9 @@ function DateRangePicker({ dateRange, onChange }) {
             <input
               type="date"
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-              value={
-                dateRange.endDate
-                  ? dayjs(dateRange.endDate).format("YYYY-MM-DD")
-                  : ""
-              }
+              value={formatDate(dateRange.endDate)}
+              min={formatDate(dateRange.startDate)}
               onChange={(e) => handleDateChange("endDate", e.target.value)}
-              min={
-                dateRange.startDate
-                  ? dayjs(dateRange.startDate).format("YYYY-MM-DD")
-                  : ""
-              }
             />
           </div>
         </div>

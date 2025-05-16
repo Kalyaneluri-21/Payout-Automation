@@ -1,6 +1,13 @@
 import React, { useState, useEffect } from "react";
-import { collection, getDocs, query, where } from "firebase/firestore";
+import {
+  collection,
+  getDocs,
+  query,
+  where,
+  Timestamp,
+} from "firebase/firestore";
 import { db } from "../../firebase/config";
+import dayjs from "dayjs";
 import MentorSelector from "./MentorSelector";
 import DateRangePicker from "./DateRangePicker";
 import PayoutSummaryCard from "./PayoutSummaryCard";
@@ -10,9 +17,9 @@ import ManualOverrideModal from "./ManualOverrideModal";
 function PayoutsPage() {
   const [selectedMentor, setSelectedMentor] = useState(null);
   const [dateRange, setDateRange] = useState({
-    startDate: null,
-    endDate: null,
-    preset: "7", // '7', '15', '30', or 'custom'
+    startDate: dayjs().subtract(6, "day").startOf("day").toDate(),
+    endDate: dayjs().endOf("day").toDate(),
+    preset: "7",
   });
   const [payoutData, setPayoutData] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -27,41 +34,96 @@ function PayoutsPage() {
   const fetchPayoutData = async () => {
     setLoading(true);
     try {
+      console.log("Selected Mentor:", selectedMentor);
+      console.log("Date Range:", {
+        startDate: dateRange.startDate.toISOString(),
+        endDate: dateRange.endDate.toISOString(),
+        preset: dateRange.preset,
+      });
+
       const sessionsRef = collection(db, "sessions");
       const q = query(
         sessionsRef,
-        where("mentorName", "==", selectedMentor.name),
-        where("dateTime", ">=", dateRange.startDate),
-        where("dateTime", "<=", dateRange.endDate)
+        where("mentorName", "==", selectedMentor.id),
+        where("dateTime", ">=", Timestamp.fromDate(dateRange.startDate)),
+        where("dateTime", "<=", Timestamp.fromDate(dateRange.endDate))
       );
 
+      console.log("Executing Firestore query...");
       const querySnapshot = await getDocs(q);
+      console.log("Query completed. Found sessions:", querySnapshot.size);
+
+      if (querySnapshot.size === 0) {
+        console.log("No sessions found for the selected criteria");
+        setPayoutData({
+          totalSessions: 0,
+          totalHours: 0,
+          grossPayout: 0,
+          deductions: 0,
+          gst: 0,
+          netPayable: 0,
+          sessions: [],
+        });
+        return;
+      }
+
       const sessions = [];
       let totalHours = 0;
       let grossPayout = 0;
 
       querySnapshot.forEach((doc) => {
         const session = doc.data();
-        sessions.push(session);
-        totalHours += session.duration / 60; // Convert minutes to hours
-        grossPayout += session.calculatedPayout;
+        console.log("Processing session:", {
+          id: doc.id,
+          mentorName: session.mentorName,
+          duration: session.duration,
+          ratePerHour: session.ratePerHour,
+          dateTime: session.dateTime?.toDate()?.toISOString(),
+        });
+
+        sessions.push({
+          id: doc.id,
+          ...session,
+        });
+
+        // Convert duration from minutes to hours
+        const durationInHours = session.duration / 60;
+        totalHours += durationInHours;
+
+        // Calculate payout for this session
+        const sessionPayout = session.ratePerHour * durationInHours;
+        grossPayout += sessionPayout;
       });
 
       const deductions = grossPayout * 0.1; // 10% platform fee
       const gst = grossPayout * 0.18; // 18% GST
       const netPayable = grossPayout - deductions - gst;
 
-      setPayoutData({
+      console.log("Final calculations:", {
         totalSessions: sessions.length,
         totalHours,
         grossPayout,
         deductions,
         gst,
         netPayable,
-        sessions,
+      });
+
+      setPayoutData({
+        totalSessions: sessions.length,
+        totalHours: parseFloat(totalHours.toFixed(2)),
+        grossPayout: parseFloat(grossPayout.toFixed(2)),
+        deductions: parseFloat(deductions.toFixed(2)),
+        gst: parseFloat(gst.toFixed(2)),
+        netPayable: parseFloat(netPayable.toFixed(2)),
+        sessions: sessions,
       });
     } catch (error) {
       console.error("Error fetching payout data:", error);
+      console.error("Error details:", {
+        code: error.code,
+        message: error.message,
+        stack: error.stack,
+      });
     } finally {
       setLoading(false);
     }
