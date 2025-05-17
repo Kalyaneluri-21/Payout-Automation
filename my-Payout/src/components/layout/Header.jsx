@@ -6,6 +6,8 @@ function Header({ userRole }) {
   const location = useLocation();
   const userEmail = localStorage.getItem("userEmail");
 
+  console.log("Header: Current user role and email:", { userRole, userEmail });
+
   const isActive = (path) => {
     if (userRole === "admin") {
       return location.pathname === `/admin${path}`;

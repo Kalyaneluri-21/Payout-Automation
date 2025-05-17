@@ -294,6 +294,8 @@ function PayoutsPage() {
 
   const sendToMentor = async (receipt) => {
     try {
+      console.log("PayoutsPage: Starting sendToMentor for receipt:", receipt.id);
+      
       // Create notification
       const notificationData = {
         type: "receipt",
@@ -319,23 +321,30 @@ function PayoutsPage() {
         read: false,
       };
 
-      console.log("Creating notification:", notificationData);
+      console.log("PayoutsPage: Creating notification with data:", {
+        type: notificationData.type,
+        recipientEmail: notificationData.recipientEmail,
+        message: notificationData.message
+      });
+
       const notificationRef = await addDoc(
         collection(db, "notifications"),
         notificationData
       );
-      console.log("Notification created with ID:", notificationRef.id);
+      console.log("PayoutsPage: Notification created with ID:", notificationRef.id);
 
       // Update the receipt to mark it as sent
+      console.log("PayoutsPage: Updating receipt status to sent");
       await updateDoc(doc(db, "receipts", receipt.id), {
         sentToMentor: true,
         sentAt: Timestamp.now(),
       });
+      console.log("PayoutsPage: Receipt updated successfully");
 
       toast.success("Receipt sent to mentor successfully");
       setShowReceiptModal(false); // Close the modal after sending
     } catch (error) {
-      console.error("Error sending notification:", error);
+      console.error("PayoutsPage: Error in sendToMentor:", error);
       toast.error("Failed to send receipt to mentor");
     }
   };

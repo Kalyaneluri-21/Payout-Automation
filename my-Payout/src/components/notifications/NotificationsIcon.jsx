@@ -11,34 +11,73 @@ import {
 } from "firebase/firestore";
 import { db } from "../../firebase/config";
 import ReceiptSummary from "../payouts/ReceiptSummary";
+import dayjs from "../../utils/dayjs-config";
+import toast from "react-hot-toast";
 
 function NotificationsIcon({ userEmail }) {
   const [notifications, setNotifications] = useState([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const [selectedReceipt, setSelectedReceipt] = useState(null);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
-    if (!userEmail) return;
+    if (!userEmail) {
+      console.log("NotificationsIcon: No user email provided");
+      return;
+    }
+
+    console.log("NotificationsIcon: Setting up notifications listener for", userEmail);
 
     const notificationsRef = collection(db, "notifications");
-    const q = query(
-      notificationsRef,
-      where("recipientEmail", "==", userEmail),
-      where("read", "==", false),
-      orderBy("createdAt", "desc")
-    );
+    
+    // Create the query with error handling for missing index
+    let q;
+    try {
+      q = query(
+        notificationsRef,
+        where("recipientEmail", "==", userEmail),
+        orderBy("createdAt", "desc")
+      );
+    } catch (error) {
+      console.error("NotificationsIcon: Error creating query:", error);
+      // Fallback query without ordering if index doesn't exist
+      q = query(
+        notificationsRef,
+        where("recipientEmail", "==", userEmail)
+      );
+    }
+
+    console.log("NotificationsIcon: Query created, subscribing to updates...");
 
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
+        console.log("NotificationsIcon: Received snapshot update, docs count:", snapshot.size);
         const uniqueNotifications = new Map();
+        let count = 0;
 
-        snapshot.forEach((doc) => {
+        // Convert snapshot to array and sort by createdAt if needed
+        let docs = snapshot.docs;
+        if (!q._query.orderBy) {
+          docs = docs.sort((a, b) => b.data().createdAt?.seconds - a.data().createdAt?.seconds);
+        }
+
+        docs.forEach((doc) => {
           const notification = {
             id: doc.id,
             ...doc.data(),
             createdAt: doc.data().createdAt?.toDate() || new Date(),
           };
+          console.log("NotificationsIcon: Processing notification:", {
+            id: notification.id,
+            type: notification.type,
+            read: notification.read,
+            recipientEmail: notification.recipientEmail
+          });
+
+          if (!notification.read) {
+            count++;
+          }
 
           // For receipt notifications, use receipt ID as key to avoid duplicates
           const key = notification.receiptData?.id || notification.id;
@@ -47,14 +86,25 @@ function NotificationsIcon({ userEmail }) {
           }
         });
 
+        console.log("NotificationsIcon: Setting notifications state with count:", count);
+        setUnreadCount(count);
         setNotifications(Array.from(uniqueNotifications.values()));
       },
       (error) => {
-        console.error("Error fetching notifications:", error);
+        console.error("NotificationsIcon: Error fetching notifications:", error);
+        // Show error message to user
+        toast.error("Failed to load notifications. Please try refreshing the page.");
+        // Create a link to create the index if that's the issue
+        if (error.code === 'failed-precondition') {
+          console.log("To fix this error, create an index here:", error.message.split("here: ")[1]);
+        }
       }
     );
 
-    return () => unsubscribe();
+    return () => {
+      console.log("NotificationsIcon: Cleaning up notifications listener");
+      unsubscribe();
+    };
   }, [userEmail]);
 
   const handleNotificationClick = async (notification) => {
@@ -69,6 +119,9 @@ function NotificationsIcon({ userEmail }) {
       if (notification.type === "receipt" && notification.receiptData) {
         setSelectedReceipt(notification.receiptData);
       }
+
+      // Close dropdown when viewing receipt
+      setShowDropdown(false);
     } catch (error) {
       console.error("Error updating notification:", error);
     }
@@ -76,14 +129,22 @@ function NotificationsIcon({ userEmail }) {
 
   const formatDate = (date) => {
     if (!date) return "";
-    return new Intl.DateTimeFormat("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-      hour: "numeric",
-      minute: "numeric",
-      hour12: true,
-    }).format(date);
+    try {
+      const d = dayjs(date);
+      return d.fromNow();
+    } catch (error) {
+      console.error("Error formatting date:", error);
+      return dayjs(date).format("DD MMM YYYY");
+    }
+  };
+
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency: "INR",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(amount);
   };
 
   return (
@@ -104,9 +165,9 @@ function NotificationsIcon({ userEmail }) {
         >
           <path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
         </svg>
-        {notifications.length > 0 && (
+        {unreadCount > 0 && (
           <span className="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-red-600 rounded-full">
-            {notifications.length}
+            {unreadCount}
           </span>
         )}
       </button>
@@ -120,7 +181,7 @@ function NotificationsIcon({ userEmail }) {
             </h3>
             {notifications.length === 0 ? (
               <p className="text-gray-500 text-center py-4">
-                No new notifications
+                No notifications
               </p>
             ) : (
               <div className="space-y-4 max-h-96 overflow-y-auto">
@@ -128,14 +189,30 @@ function NotificationsIcon({ userEmail }) {
                   <div
                     key={notification.id}
                     onClick={() => handleNotificationClick(notification)}
-                    className="p-4 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
+                    className={`p-4 rounded-lg cursor-pointer transition-colors ${
+                      notification.read
+                        ? "bg-gray-50 hover:bg-gray-100"
+                        : "bg-blue-50 hover:bg-blue-100"
+                    }`}
                   >
-                    <p className="text-sm text-gray-800">
-                      {notification.message}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-2">
-                      {formatDate(notification.createdAt)}
-                    </p>
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <p className="text-sm text-gray-800">
+                          {notification.message}
+                        </p>
+                        {notification.type === "receipt" && (
+                          <p className="text-sm font-semibold text-green-600 mt-1">
+                            Amount: {formatCurrency(notification.receiptData.finalPayout)}
+                          </p>
+                        )}
+                        <p className="text-xs text-gray-500 mt-2">
+                          {formatDate(notification.createdAt)}
+                        </p>
+                      </div>
+                      {!notification.read && (
+                        <span className="h-2 w-2 bg-blue-600 rounded-full"></span>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
