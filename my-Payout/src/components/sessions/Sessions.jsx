@@ -5,6 +5,7 @@ import SessionsTable from "./SessionsTable";
 import SessionFilterBar from "./SessionFilterBar";
 import AddSessionModal from "./AddSessionModal";
 import { Toaster } from "react-hot-toast";
+import { isPast, isToday, startOfDay } from "date-fns";
 
 function Sessions() {
   const [sessions, setSessions] = useState([]);
@@ -16,6 +17,16 @@ function Sessions() {
   });
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  const getSessionStatus = (sessionDateTime) => {
+    const now = new Date();
+    if (isToday(sessionDateTime)) {
+      // If session is today, compare with current time
+      return isPast(sessionDateTime) ? "Completed" : "Scheduled";
+    }
+    // For other days, compare with start of day
+    return isPast(startOfDay(sessionDateTime)) ? "Completed" : "Scheduled";
+  };
+
   // Fetch sessions with applied filters
   useEffect(() => {
     const fetchSessions = async () => {
@@ -25,10 +36,16 @@ function Sessions() {
         const q = query(sessionsRef, orderBy("dateTime", "desc"));
         const querySnapshot = await getDocs(q);
 
-        const sessionsData = querySnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
+        const sessionsData = querySnapshot.docs.map((doc) => {
+          const data = doc.data();
+          const sessionDateTime = data.dateTime.toDate();
+          const status = getSessionStatus(sessionDateTime);
+          return {
+            id: doc.id,
+            ...data,
+            status,
+          };
+        });
 
         // Apply filters
         let filteredSessions = sessionsData;

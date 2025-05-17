@@ -14,24 +14,25 @@ function MentorSelector({ selectedMentor, onSelect }) {
       const sessionsRef = collection(db, "sessions");
       const querySnapshot = await getDocs(sessionsRef);
 
-      // Create a Set to store unique mentor names
-      const uniqueMentors = new Set();
+      // Create a Map to store unique mentor emails and their data
+      const uniqueMentors = new Map();
 
       querySnapshot.forEach((doc) => {
         const session = doc.data();
-        if (session.mentorName) {
-          uniqueMentors.add(session.mentorName);
+        if (session.mentorEmail && !uniqueMentors.has(session.mentorEmail)) {
+          uniqueMentors.set(session.mentorEmail, {
+            id: session.mentorEmail,
+            email: session.mentorEmail,
+            name: session.mentorName,
+          });
         }
       });
 
-      // Convert Set to array of mentor objects
-      const mentorsList = Array.from(uniqueMentors).map((name) => ({
-        id: name, // Using name as ID since that's what we have
-        name: name,
-      }));
+      // Convert Map to array
+      const mentorsList = Array.from(uniqueMentors.values());
 
-      // Sort mentors by name
-      mentorsList.sort((a, b) => a.name.localeCompare(b.name));
+      // Sort mentors by email
+      mentorsList.sort((a, b) => a.email.localeCompare(b.email));
 
       if (mentorsList.length === 0) {
         setError("No mentors found. Please add some sessions first.");
@@ -99,7 +100,7 @@ function MentorSelector({ selectedMentor, onSelect }) {
           <option value="">Select a mentor</option>
           {mentors.map((mentor) => (
             <option key={mentor.id} value={mentor.id}>
-              {mentor.name}
+              {mentor.email}
             </option>
           ))}
         </select>

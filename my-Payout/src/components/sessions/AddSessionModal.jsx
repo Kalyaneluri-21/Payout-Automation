@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../../firebase/config";
 import toast from "react-hot-toast";
+import { isPast, isToday, startOfDay } from "date-fns";
 
 function AddSessionModal({ isOpen, onClose, onSessionAdded }) {
   const [formData, setFormData] = useState({
@@ -18,6 +19,16 @@ function AddSessionModal({ isOpen, onClose, onSessionAdded }) {
   const validateEmail = (email) => {
     const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return re.test(email);
+  };
+
+  const getSessionStatus = (sessionDateTime) => {
+    const now = new Date();
+    if (isToday(sessionDateTime)) {
+      // If session is today, compare with current time
+      return isPast(sessionDateTime) ? "Completed" : "Scheduled";
+    }
+    // For other days, compare with start of day
+    return isPast(startOfDay(sessionDateTime)) ? "Completed" : "Scheduled";
   };
 
   const calculatePayout = (duration, ratePerHour) => {
@@ -66,14 +77,18 @@ function AddSessionModal({ isOpen, onClose, onSessionAdded }) {
         Number(formData.ratePerHour)
       );
 
+      const sessionDateTime = new Date(formData.dateTime);
+      const status = getSessionStatus(sessionDateTime);
+
       // Prepare session data
       const sessionData = {
         ...formData,
-        dateTime: new Date(formData.dateTime),
+        dateTime: sessionDateTime,
         duration: Number(formData.duration),
         ratePerHour: Number(formData.ratePerHour),
         calculatedPayout,
-        status: "Calculated",
+        status,
+        receiptStatus: "Receipt Not Generated",
         createdAt: serverTimestamp(),
       };
 

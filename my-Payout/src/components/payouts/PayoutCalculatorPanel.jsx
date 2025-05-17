@@ -21,10 +21,32 @@ function PayoutCalculatorPanel({ data }) {
         </svg>
       ),
       color: "blue",
+      tooltip: "Total number of sessions in the selected date range",
+    },
+    {
+      label: "Eligible Sessions",
+      value: data.eligibleSessions?.length || 0,
+      icon: (
+        <svg
+          className="w-6 h-6"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+          />
+        </svg>
+      ),
+      color: "green",
+      tooltip: "Completed sessions without generated receipts",
     },
     {
       label: "Total Hours",
-      value: `${data.totalHours.toFixed(1)}h`,
+      value: `${data.totalHours}h`,
       icon: (
         <svg
           className="w-6 h-6"
@@ -40,7 +62,8 @@ function PayoutCalculatorPanel({ data }) {
           />
         </svg>
       ),
-      color: "green",
+      color: "purple",
+      tooltip: "Total hours from eligible sessions",
     },
     {
       label: "Gross Payout",
@@ -61,6 +84,7 @@ function PayoutCalculatorPanel({ data }) {
         </svg>
       ),
       color: "yellow",
+      tooltip: "Total payout amount before deductions",
     },
     {
       label: "Platform Fee (10%)",
@@ -81,6 +105,7 @@ function PayoutCalculatorPanel({ data }) {
         </svg>
       ),
       color: "red",
+      tooltip: "10% platform fee deduction",
     },
     {
       label: "GST (18%)",
@@ -100,7 +125,8 @@ function PayoutCalculatorPanel({ data }) {
           />
         </svg>
       ),
-      color: "yellow",
+      color: "orange",
+      tooltip: "18% GST deduction",
     },
     {
       label: "Net Payable",
@@ -121,15 +147,17 @@ function PayoutCalculatorPanel({ data }) {
         </svg>
       ),
       color: "green",
+      tooltip: "Final amount payable after deductions",
     },
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
       {metrics.map((metric, index) => (
         <div
           key={index}
           className={`bg-white rounded-lg shadow p-6 border-l-4 border-${metric.color}-500`}
+          title={metric.tooltip}
         >
           <div className="flex items-center">
             <div

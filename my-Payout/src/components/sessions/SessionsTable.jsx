@@ -12,6 +12,10 @@ function SessionsTable({ sessions, loading }) {
 
   const getStatusColor = (status) => {
     switch (status) {
+      case "Completed":
+        return "bg-green-100 text-green-800";
+      case "Scheduled":
+        return "bg-blue-100 text-blue-800";
       case "Calculated":
         return "bg-yellow-100 text-yellow-800";
       case "Pending Receipt":
@@ -74,14 +78,20 @@ function SessionsTable({ sessions, loading }) {
               scope="col"
               className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
             >
-              Status
+              Session Status
+            </th>
+            <th
+              scope="col"
+              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+            >
+              Receipt Status
             </th>
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
           {sessions.length === 0 ? (
             <tr>
-              <td colSpan="8" className="px-6 py-4 text-center text-gray-500">
+              <td colSpan="9" className="px-6 py-4 text-center text-gray-500">
                 {" "}
                 No sessions found{" "}
               </td>
@@ -131,6 +141,19 @@ function SessionsTable({ sessions, loading }) {
                     )}`}
                   >
                     {session.status}
+                  </span>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span
+                    className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                      session.receiptStatus === "Receipt Generated"
+                        ? "bg-green-100 text-green-800"
+                        : "bg-gray-100 text-gray-800"
+                    }`}
+                  >
+                    {session.receiptStatus === "Receipt Generated"
+                      ? "Receipt Generated"
+                      : "Receipt Not Generated"}
                   </span>
                 </td>
               </tr>

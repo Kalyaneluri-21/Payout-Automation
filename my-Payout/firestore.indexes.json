@@ -5,11 +5,15 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "mentorName",
+          "fieldPath": "mentorEmail",
           "order": "ASCENDING"
         },
         {
           "fieldPath": "dateTime",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
           "order": "ASCENDING"
         }
       ]
