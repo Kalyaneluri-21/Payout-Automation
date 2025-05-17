@@ -10,7 +10,7 @@ import {
   orderBy,
 } from "firebase/firestore";
 import { db } from "../../firebase/config";
-import dayjs from "dayjs";
+import dayjs from "../../utils/dayjs-config";
 import MentorSelector from "./MentorSelector";
 import DateRangePicker from "./DateRangePicker";
 import PayoutSummaryCard from "./PayoutSummaryCard";
@@ -21,10 +21,20 @@ import toast from "react-hot-toast";
 function PayoutsPage() {
   const [selectedMentor, setSelectedMentor] = useState(null);
   const [dateRange, setDateRange] = useState(() => {
-    const now = dayjs();
+    // Initialize with IST dates
+    const now = dayjs().tz();
+    const startDate = now.subtract(7, "days").startOf("day");
+    const endDate = now.endOf("day");
+
+    console.log("Initializing date range:", {
+      startDate: startDate.format("YYYY-MM-DD HH:mm:ss"),
+      endDate: endDate.format("YYYY-MM-DD HH:mm:ss"),
+      timezone: "Asia/Kolkata",
+    });
+
     return {
-      startDate: now.subtract(7, "days").startOf("day").toDate(),
-      endDate: now.endOf("day").toDate(),
+      startDate: startDate.toDate(),
+      endDate: endDate.toDate(),
       preset: "7",
     };
   });
@@ -42,21 +52,37 @@ function PayoutsPage() {
     setLoading(true);
     try {
       const sessionsRef = collection(db, "sessions");
-      // Create query matching the index structure exactly
+
+      // Convert dates to Firestore timestamps while preserving IST timezone
+      const startTimestamp = Timestamp.fromDate(
+        dayjs(dateRange.startDate).tz("Asia/Kolkata").toDate()
+      );
+      const endTimestamp = Timestamp.fromDate(
+        dayjs(dateRange.endDate).tz("Asia/Kolkata").toDate()
+      );
+
+      console.log("Query date range:", {
+        startDate: dayjs(dateRange.startDate).format("YYYY-MM-DD HH:mm:ss"),
+        endDate: dayjs(dateRange.endDate).format("YYYY-MM-DD HH:mm:ss"),
+        startTimestamp,
+        endTimestamp,
+        timezone: "Asia/Kolkata",
+      });
+
       const q = query(
         sessionsRef,
         where("mentorEmail", "==", selectedMentor.email),
-        where("status", "==", "Calculated"),
-        where("dateTime", ">=", Timestamp.fromDate(dateRange.startDate)),
-        where("dateTime", "<=", Timestamp.fromDate(dateRange.endDate))
+        where("status", "==", "Completed"),
+        where("dateTime", ">=", startTimestamp),
+        where("dateTime", "<=", endTimestamp)
       );
 
       console.log("Query debug:", {
         mentorEmail: selectedMentor.email,
-        status: "Calculated",
+        status: "Completed",
         dateRange: {
-          start: dateRange.startDate.toISOString(),
-          end: dateRange.endDate.toISOString(),
+          start: dayjs(dateRange.startDate).format("YYYY-MM-DD HH:mm:ss"),
+          end: dayjs(dateRange.endDate).format("YYYY-MM-DD HH:mm:ss"),
         },
       });
 
@@ -66,7 +92,11 @@ function PayoutsPage() {
         totalResults: querySnapshot.size,
         allDocs: querySnapshot.docs.map((doc) => ({
           id: doc.id,
-          dateTime: doc.data().dateTime?.toDate()?.toISOString(),
+          dateTime: doc.data().dateTime?.toDate()
+            ? dayjs(doc.data().dateTime.toDate())
+                .tz("Asia/Kolkata")
+                .format("YYYY-MM-DD HH:mm:ss")
+            : null,
           status: doc.data().status,
           mentorEmail: doc.data().mentorEmail,
           ratePerHour: doc.data().ratePerHour,
@@ -97,6 +127,10 @@ function PayoutsPage() {
         const session = {
           id: doc.id,
           ...doc.data(),
+          // Convert Firestore timestamp to IST date
+          dateTime: doc.data().dateTime?.toDate
+            ? dayjs(doc.data().dateTime.toDate()).tz("Asia/Kolkata").toDate()
+            : null,
         };
         allSessions.push(session);
 

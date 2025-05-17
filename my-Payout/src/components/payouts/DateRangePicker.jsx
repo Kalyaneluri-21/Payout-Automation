@@ -1,5 +1,5 @@
 import React from "react";
-import dayjs from "dayjs";
+import dayjs from "../../utils/dayjs-config";
 
 function DateRangePicker({ dateRange, onChange }) {
   const presets = [
@@ -19,10 +19,16 @@ function DateRangePicker({ dateRange, onChange }) {
     }
 
     const days = parseInt(preset);
-    const endDate = dayjs().endOf("day");
-    const startDate = dayjs()
-      .subtract(days - 1, "day")
-      .startOf("day");
+    const now = dayjs().tz("Asia/Kolkata");
+    const endDate = now.endOf("day");
+    const startDate = now.subtract(days - 1, "day").startOf("day");
+
+    console.log("DateRangePicker - Preset Change:", {
+      preset,
+      startDate: startDate.format("YYYY-MM-DD HH:mm:ss"),
+      endDate: endDate.format("YYYY-MM-DD HH:mm:ss"),
+      timezone: "Asia/Kolkata",
+    });
 
     onChange({
       startDate: startDate.toDate(),
@@ -32,11 +38,19 @@ function DateRangePicker({ dateRange, onChange }) {
   };
 
   const handleDateChange = (field, value) => {
-    const date = value ? dayjs(value) : null;
+    // Parse the date in IST timezone
+    const date = value ? dayjs.tz(value, "Asia/Kolkata") : null;
 
-    // Set start date to start of day and end date to end of day
+    // Set start date to start of day and end date to end of day in IST
     const adjustedDate =
       date && (field === "startDate" ? date.startOf("day") : date.endOf("day"));
+
+    console.log("DateRangePicker - Date Change:", {
+      field,
+      inputValue: value,
+      adjustedDate: adjustedDate?.format("YYYY-MM-DD HH:mm:ss"),
+      timezone: "Asia/Kolkata",
+    });
 
     onChange({
       ...dateRange,
@@ -45,9 +59,9 @@ function DateRangePicker({ dateRange, onChange }) {
     });
   };
 
-  // Format date for display
+  // Format date for display in IST
   const formatDate = (date) => {
-    return date ? dayjs(date).format("YYYY-MM-DD") : "";
+    return date ? dayjs.tz(date, "Asia/Kolkata").format("YYYY-MM-DD") : "";
   };
 
   return (
