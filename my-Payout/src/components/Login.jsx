@@ -2,39 +2,56 @@ import React, { useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { login } from "../slice/AuthSlice";
 import { useNavigate } from "react-router-dom";
+import { collection, query, where, getDocs } from "firebase/firestore";
+import { db } from "../firebase/config";
+import toast from "react-hot-toast";
 
 function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [formerror, setFormerror] = useState("");
+  const [loading, setLoading] = useState(false);
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { loading, error } = useSelector((state) => state.auth);
+  const { error } = useSelector((state) => state.auth);
 
-  async function HandleSubmit(e) {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    if (!email || !password) {
-      return setFormerror("Please fill all Fields");
-    }
-    if (password.length < 6) {
-      return setFormerror("Password must contain atleast 6 charcters");
-    }
-    setFormerror("");
+    setLoading(true);
+
     try {
-      const logDetails = await dispatch(login({ email, password })).unwrap();
-      if (logDetails.role == "admin") {
+      // Query Firestore to check if the user exists
+      const usersRef = collection(db, "users");
+      const q = query(usersRef, where("email", "==", email.toLowerCase()));
+      const querySnapshot = await getDocs(q);
+
+      if (querySnapshot.empty) {
+        toast.error("User not found. Please check your email.");
+        return;
+      }
+
+      const userData = querySnapshot.docs[0].data();
+
+      // Store user data in localStorage
+      localStorage.setItem("userEmail", userData.email);
+      localStorage.setItem("userRole", userData.role);
+      localStorage.setItem("userName", userData.name || "");
+
+      // Navigate based on role
+      if (userData.role === "admin") {
         navigate("/admin");
-      } else {
+      } else if (userData.role === "mentor") {
         navigate("/mentor");
       }
-      return;
-    } catch (error) {
-      alert(error.message);
-    }
 
-    setEmail("");
-    setPassword("");
-  }
+      toast.success("Login successful!");
+    } catch (error) {
+      console.error("Login error:", error);
+      toast.error("Failed to log in. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100 fixed inset-0">
@@ -48,7 +65,7 @@ function Login() {
               Please sign in to your account
             </p>
           </div>
-          <form onSubmit={HandleSubmit} className="space-y-6">
+          <form onSubmit={handleLogin} className="space-y-6">
             <div>
               <label
                 htmlFor="email"

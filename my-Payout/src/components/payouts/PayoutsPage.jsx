@@ -292,6 +292,54 @@ function PayoutsPage() {
     setIsOverrideModalOpen(false);
   };
 
+  const sendToMentor = async (receipt) => {
+    try {
+      // Create notification
+      const notificationData = {
+        type: "receipt",
+        recipientEmail: receipt.mentorEmail,
+        message: `New receipt generated for period: ${dayjs(
+          receipt.timeRange.startDate.toDate()
+        ).format("DD MMM YYYY")} - ${dayjs(
+          receipt.timeRange.endDate.toDate()
+        ).format("DD MMM YYYY")}. Click to view details.`,
+        receiptData: {
+          id: receipt.id,
+          mentorName: receipt.mentorName,
+          mentorEmail: receipt.mentorEmail,
+          timeRange: receipt.timeRange,
+          totalPayout: receipt.totalPayout,
+          deduction: receipt.deduction,
+          gst: receipt.gst,
+          finalPayout: receipt.finalPayout,
+          sessionList: receipt.sessionList,
+          createdAt: receipt.createdAt,
+        },
+        createdAt: Timestamp.now(),
+        read: false,
+      };
+
+      console.log("Creating notification:", notificationData);
+      const notificationRef = await addDoc(
+        collection(db, "notifications"),
+        notificationData
+      );
+      console.log("Notification created with ID:", notificationRef.id);
+
+      // Update the receipt to mark it as sent
+      await updateDoc(doc(db, "receipts", receipt.id), {
+        sentToMentor: true,
+        sentAt: Timestamp.now(),
+      });
+
+      toast.success("Receipt sent to mentor successfully");
+      setShowReceiptModal(false); // Close the modal after sending
+    } catch (error) {
+      console.error("Error sending notification:", error);
+      toast.error("Failed to send receipt to mentor");
+    }
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-8">
@@ -358,7 +406,14 @@ function PayoutsPage() {
               <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
                 <button
                   type="button"
-                  className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm"
+                  className="ml-3 inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:text-sm"
+                  onClick={() => sendToMentor(receiptData)}
+                >
+                  Send to Mentor
+                </button>
+                <button
+                  type="button"
+                  className="ml-3 inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:text-sm"
                   onClick={() => setShowReceiptModal(false)}
                 >
                   Close
