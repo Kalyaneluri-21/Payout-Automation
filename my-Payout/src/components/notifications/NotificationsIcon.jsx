@@ -36,11 +36,19 @@ function NotificationsIcon({ userEmail }) {
       q = query(
         notificationsRef,
         where("recipientEmail", "==", userEmail),
+        where("archived", "==", false),  // Changed from != true to == false
         orderBy("createdAt", "desc")
       );
+
+      console.log("NotificationsIcon: Query parameters:", {
+        recipientEmail: userEmail,
+        archived: false,
+        orderBy: "createdAt desc"
+      });
+
     } catch (error) {
       console.error("NotificationsIcon: Error creating query:", error);
-      // Fallback query without ordering if index doesn't exist
+      // Fallback to simpler query if index issues occur
       q = query(
         notificationsRef,
         where("recipientEmail", "==", userEmail)
@@ -109,10 +117,14 @@ function NotificationsIcon({ userEmail }) {
 
   const handleNotificationClick = async (notification) => {
     try {
-      // Mark notification as read
+      console.log("NotificationsIcon: Marking notification as read:", notification.id);
+      
+      // Mark notification as read and archived
       await updateDoc(doc(db, "notifications", notification.id), {
         read: true,
         readAt: Timestamp.now(),
+        archived: true,
+        archivedAt: Timestamp.now()
       });
 
       // If it's a receipt notification, show the receipt
@@ -122,9 +134,22 @@ function NotificationsIcon({ userEmail }) {
 
       // Close dropdown when viewing receipt
       setShowDropdown(false);
+
+      // Remove this notification from the local state
+      setNotifications(prev => prev.filter(n => n.id !== notification.id));
+      setUnreadCount(prev => Math.max(0, prev - 1));
+
+      console.log("NotificationsIcon: Successfully marked notification as read and archived");
+
     } catch (error) {
-      console.error("Error updating notification:", error);
+      console.error("NotificationsIcon: Error updating notification:", error);
+      toast.error("Failed to mark notification as read");
     }
+  };
+
+  // Add a function to handle closing the receipt modal
+  const handleCloseReceipt = () => {
+    setSelectedReceipt(null);
   };
 
   const formatDate = (date) => {
@@ -231,7 +256,7 @@ function NotificationsIcon({ userEmail }) {
             <div className="bg-gray-50 px-6 py-4 flex justify-end rounded-b-lg">
               <button
                 type="button"
-                onClick={() => setSelectedReceipt(null)}
+                onClick={handleCloseReceipt}
                 className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500"
               >
                 Close

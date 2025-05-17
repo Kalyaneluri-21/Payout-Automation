@@ -319,6 +319,7 @@ function PayoutsPage() {
         },
         createdAt: Timestamp.now(),
         read: false,
+        archived: false  // Explicitly set archived to false for new notifications
       };
 
       console.log("PayoutsPage: Creating notification with data:", {
