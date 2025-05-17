@@ -2,8 +2,25 @@ import React from "react";
 import dayjs from "../../utils/dayjs-config";
 
 function ReceiptSummary({ receipt }) {
-  const formatDate = (date) => {
-    return dayjs(date).tz("Asia/Kolkata").format("DD MMM YYYY, hh:mm A");
+  const formatDate = (timestamp) => {
+    // Check if the timestamp is a Firestore Timestamp
+    if (timestamp && typeof timestamp.toDate === "function") {
+      return dayjs(timestamp.toDate())
+        .tz("Asia/Kolkata")
+        .format("DD MMM YYYY, hh:mm A");
+    }
+    // If it's already a Date object
+    if (timestamp instanceof Date) {
+      return dayjs(timestamp).tz("Asia/Kolkata").format("DD MMM YYYY, hh:mm A");
+    }
+    // If it's a number (seconds since epoch)
+    if (typeof timestamp === "number") {
+      return dayjs
+        .unix(timestamp)
+        .tz("Asia/Kolkata")
+        .format("DD MMM YYYY, hh:mm A");
+    }
+    return "Invalid Date";
   };
 
   const formatCurrency = (amount) => {

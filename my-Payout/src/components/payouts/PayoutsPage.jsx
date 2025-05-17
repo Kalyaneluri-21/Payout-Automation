@@ -187,10 +187,15 @@ function PayoutsPage() {
 
       const querySnapshot = await getDocs(q);
 
-      // Filter sessions by date range and receipt status client-side
-      const startTimestamp = Timestamp.fromDate(dateRange.startDate);
-      const endTimestamp = Timestamp.fromDate(dateRange.endDate);
+      // Convert dates to Firestore timestamps
+      const startTimestamp = Timestamp.fromDate(
+        dayjs(dateRange.startDate).tz("Asia/Kolkata").startOf("day").toDate()
+      );
+      const endTimestamp = Timestamp.fromDate(
+        dayjs(dateRange.endDate).tz("Asia/Kolkata").endOf("day").toDate()
+      );
 
+      // Filter sessions by date range and receipt status client-side
       const eligibleSessions = querySnapshot.docs.filter((doc) => {
         const data = doc.data();
         return (
