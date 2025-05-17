@@ -15,7 +15,6 @@ function PayoutCalculator() {
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [calculations, setCalculations] = useState({
-    totalSessions: 0,
     totalHours: 0,
     grossPayout: 0,
     platformDeductions: 0,
@@ -60,7 +59,6 @@ function PayoutCalculator() {
 
   // Calculate payout details
   const calculatePayout = (sessionData) => {
-    const totalSessions = sessionData.length;
     const totalMinutes = sessionData.reduce(
       (sum, session) => sum + session.duration,
       0
@@ -76,7 +74,6 @@ function PayoutCalculator() {
     const netPayable = grossPayout - platformDeductions - gst;
 
     setCalculations({
-      totalSessions,
       totalHours,
       grossPayout,
       platformDeductions,

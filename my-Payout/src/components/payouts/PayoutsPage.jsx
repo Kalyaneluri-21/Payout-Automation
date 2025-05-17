@@ -7,6 +7,7 @@ import {
   Timestamp,
   updateDoc,
   doc,
+  addDoc,
   orderBy,
 } from "firebase/firestore";
 import { db } from "../../firebase/config";
@@ -16,7 +17,9 @@ import DateRangePicker from "./DateRangePicker";
 import PayoutSummaryCard from "./PayoutSummaryCard";
 import PayoutCalculatorPanel from "./PayoutCalculatorPanel";
 import ManualOverrideModal from "./ManualOverrideModal";
+import ReceiptSummary from "./ReceiptSummary";
 import toast from "react-hot-toast";
+import ReceiptList from "./ReceiptList";
 
 function PayoutsPage() {
   const [selectedMentor, setSelectedMentor] = useState(null);
@@ -41,6 +44,8 @@ function PayoutsPage() {
   const [payoutData, setPayoutData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [isOverrideModalOpen, setIsOverrideModalOpen] = useState(false);
+  const [receiptData, setReceiptData] = useState(null);
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
 
   useEffect(() => {
     if (selectedMentor && dateRange.startDate && dateRange.endDate) {
@@ -106,7 +111,6 @@ function PayoutsPage() {
 
       if (querySnapshot.size === 0) {
         setPayoutData({
-          totalSessions: 0,
           totalHours: 0,
           grossPayout: 0,
           deductions: 0,
@@ -149,7 +153,6 @@ function PayoutsPage() {
       const netPayable = grossPayout - deductions - gst;
 
       setPayoutData({
-        totalSessions: allSessions.length,
         totalHours: parseFloat(totalHours.toFixed(2)),
         grossPayout: parseFloat(grossPayout.toFixed(2)),
         deductions: parseFloat(deductions.toFixed(2)),
@@ -175,40 +178,100 @@ function PayoutsPage() {
     setLoading(true);
     try {
       const sessionsRef = collection(db, "sessions");
+      // First query to get completed sessions for this mentor
       const q = query(
         sessionsRef,
         where("mentorEmail", "==", selectedMentor.email),
-        where("dateTime", ">=", Timestamp.fromDate(dateRange.startDate)),
-        where("dateTime", "<=", Timestamp.fromDate(dateRange.endDate)),
         where("status", "==", "Completed")
       );
 
       const querySnapshot = await getDocs(q);
-      const updatePromises = [];
 
-      querySnapshot.forEach((docSnapshot) => {
-        const sessionData = docSnapshot.data();
-        if (sessionData.receiptStatus !== "Receipt Generated") {
-          updatePromises.push(
-            updateDoc(doc(db, "sessions", docSnapshot.id), {
-              receiptStatus: "Receipt Generated",
-              receiptGeneratedAt: Timestamp.now(),
-            })
-          );
-        }
+      // Filter sessions by date range and receipt status client-side
+      const startTimestamp = Timestamp.fromDate(dateRange.startDate);
+      const endTimestamp = Timestamp.fromDate(dateRange.endDate);
+
+      const eligibleSessions = querySnapshot.docs.filter((doc) => {
+        const data = doc.data();
+        return (
+          data.dateTime >= startTimestamp &&
+          data.dateTime <= endTimestamp &&
+          data.receiptStatus !== "Receipt Generated"
+        );
       });
 
-      if (updatePromises.length === 0) {
+      if (eligibleSessions.length === 0) {
         toast.info("No eligible sessions found for receipt generation");
         return;
       }
 
+      // Prepare session data for receipt
+      const sessionList = eligibleSessions.map((doc) => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          dateTime: data.dateTime,
+          duration: data.duration,
+          type: data.type,
+          calculatedPayout:
+            data.calculatedPayout || (data.duration / 60) * data.ratePerHour,
+        };
+      });
+
+      // Calculate totals
+      const totalPayout = sessionList.reduce(
+        (sum, session) => sum + session.calculatedPayout,
+        0
+      );
+      const deduction = totalPayout * 0.1; // 10% platform fee
+      const gst = totalPayout * 0.18; // 18% GST
+      const finalPayout = totalPayout - deduction - gst;
+
+      // Create receipt document
+      const receiptData = {
+        mentorName: selectedMentor.name,
+        mentorEmail: selectedMentor.email,
+        timeRange: {
+          startDate: startTimestamp,
+          endDate: endTimestamp,
+        },
+        totalPayout,
+        deduction,
+        gst,
+        finalPayout,
+        sessionList,
+        createdAt: Timestamp.now(),
+      };
+
+      // Add receipt to Firestore
+      const receiptRef = await addDoc(collection(db, "receipts"), receiptData);
+
+      // Update session documents
+      const updatePromises = eligibleSessions.map((docSnapshot) =>
+        updateDoc(doc(db, "sessions", docSnapshot.id), {
+          receiptStatus: "Receipt Generated",
+          receiptGeneratedAt: Timestamp.now(),
+          receiptId: receiptRef.id,
+        })
+      );
+
       await Promise.all(updatePromises);
-      toast.success(`Generated receipts for ${updatePromises.length} sessions`);
+
+      toast.success(
+        `Generated receipt for ${eligibleSessions.length} sessions`
+      );
+
+      // Show receipt summary
+      setReceiptData({
+        ...receiptData,
+        id: receiptRef.id,
+      });
+      setShowReceiptModal(true);
+
       fetchPayoutData(); // Refresh the data
     } catch (error) {
-      console.error("Error generating receipts:", error);
-      toast.error("Failed to generate receipts");
+      console.error("Error generating receipt:", error);
+      toast.error("Failed to generate receipt");
     } finally {
       setLoading(false);
     }
@@ -233,7 +296,7 @@ function PayoutsPage() {
           disabled={loading || !selectedMentor}
           className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
         >
-          {loading ? "Generating..." : "Generate Receipts"}
+          {loading ? "Generating..." : "Generate Receipt"}
         </button>
       </div>
 
@@ -256,6 +319,9 @@ function PayoutsPage() {
             data={payoutData}
             onOverride={() => setIsOverrideModalOpen(true)}
           />
+          <div className="mt-8">
+            <ReceiptList selectedMentor={selectedMentor} />
+          </div>
           <ManualOverrideModal
             isOpen={isOverrideModalOpen}
             onClose={() => setIsOverrideModalOpen(false)}
@@ -266,6 +332,35 @@ function PayoutsPage() {
       ) : (
         <div className="text-center text-gray-600 mt-8">
           Select a mentor and date range to calculate payout
+        </div>
+      )}
+
+      {/* Receipt Modal */}
+      {showReceiptModal && receiptData && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div
+              className="fixed inset-0 transition-opacity"
+              aria-hidden="true"
+            >
+              <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
+            </div>
+
+            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
+              <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <ReceiptSummary receipt={receiptData} />
+              </div>
+              <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                <button
+                  type="button"
+                  className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm"
+                  onClick={() => setShowReceiptModal(false)}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
